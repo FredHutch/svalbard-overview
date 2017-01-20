@@ -94,5 +94,26 @@ Ephemeral secrets are secrets that exist for a short period of time
 
 An argument can easily be made that auditing is a core capability
 
+---
 
+# Current Solutions
+
+ - Meatspace
+   - an administrator with knowledge in her head
+ - Simple file
+   - text file with using file permissions to control access
+   - sometimes encrypted
+ - Chef Vault
+   - a new capability, stores encrypted secret in databag
+
+---
+
+# Available Solutions
+
+Many exist:
+  - Chef Vault 
+  - Git-Crypt
+  - Blackbox
+  - Keywhix
+  - [others](https://gist.github.com/maxvt/bb49a6c7243163b8120625fc8ae3f3cd)
 
