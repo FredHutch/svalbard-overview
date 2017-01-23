@@ -141,10 +141,16 @@ An argument can easily be made that auditing is a core capability
 # Available Solutions
 
 Many exist:
-  - Chef Vault 
-  - Git-Crypt
-  - Blackbox
-  - Keywhiz
+  - Chef Vault: k/v secret store
+  - Git-Crypt: git encryption
+  - Blackbox: k/v secret store
+  - Keywhiz: k/v secret store
+  - Confidant: IAM management platform
+  - Lemur: PKI management platform
+
+These and other secret management platforms could be used to engineer something
+like Vault
+
   - [others](https://gist.github.com/maxvt/bb49a6c7243163b8120625fc8ae3f3cd)
 
 ???
