@@ -44,5 +44,8 @@
     "gulp-uglify": "^1.5.3",
     "gulp-util": "^3.0.7",
     "poststylus": "^0.2.3"
+  },
+  "dependencies": {
+    "browser-sync": "^2.18.6"
   }
 }
