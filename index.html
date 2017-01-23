@@ -16,13 +16,15 @@
 
 ---
 
+# Itinerary
+
  - What's a Secret
  - The Case for Managing Secrets
  - Key Capabilities Needed
  - Current Solutions
  - Available Solutions
- - Vault Overview
- - The Case for Vault
+ - Hashicorp Vault Overview
+ - The Case for Hashicorp Vault
  - Options for Implementation
 
 ---
@@ -40,6 +42,25 @@
 ???
 
 Password recovery questions: high school, favorite color, are these now secrets? How well are those secrets kept?
+
+---
+
+# A Diversion of Turtles
+
+From a [presentation](http://danielsomerfield.github.io/turtles/) by D. Somerfield at OWASP.
+
+All secret management solutions rely on secrets that can't be distributed by
+itself.  It's turtles all the way down folks.
+
+<img src="img/yertle.jpg" style="width: 75%; height: 75%"/>
+
+???
+
+ - Somerfield used the imagery of the notorious "turtles all the way down"
+   comment from an apocryphal story illustrating the problems of infinite
+   regression.
+ - Variation on "quod ipse custodis"
+ - No single solution exists
 
 ---
 
@@ -98,7 +119,7 @@ We need secrets to do our jobs- we need safe storage and sensible access
  - Temporary, ephemeral secrets
  - Auditing access
 
- ???
+???
 
 Ephemeral secrets are secrets that exist for a short period of time
  - task or time based
@@ -118,6 +139,10 @@ An argument can easily be made that auditing is a core capability
  - Chef Vault
    - a new capability, stores encrypted secret in databag
 
+???
+
+Solutions currently in use at Hutch, may have missed a few
+
 ---
 
 # Available Solutions
@@ -129,14 +154,167 @@ Many exist:
   - Keywhix
   - [others](https://gist.github.com/maxvt/bb49a6c7243163b8120625fc8ae3f3cd)
 
-# Agenda
+???
 
-1. Introduction
-2. Deep-dive
-3. ...
+ - all have plus/minus
+ - keywhiz/blackbox more-or-less specific to author's environment
+ - git-crypt and others encrypt at rest on github, AAA features dependent on
+   github
 
 ---
-# Introduction
+
+# Hashicorp Vault Overview
+
+Hashicorp Vault is something of a game-changer on the secrets management landscape.
+
+ - stores in an encrypted backend, provides access via HTTP API
+ - multiple authentication options
+ - multiple authorization options
+ - multiple storage options
+ - multiple _secret generators_
+ - provides AAA and auditing, ephemeral and leased secret management
+
+This all comes at a cost: _complexity_
+
+???
+
+ - there is a command-line client, it uses the HTTP API
+ - _secret generators_ and ephemeral ticket management is where Vault
+   distinguishes itself
+
+---
+
+# Hashicorp Vault Overview
+
+<img src="img/hash-vault-arch.png" style="width: 100%; height: 100%"/>
+
+---
+
+# Hashicorp Vault Overview
+
+ - Accessing Secrets is /always/ done via HTTP API
+    - command line vault client
+    - `curl` post/get
+    - Python/Ruby/Go/... libraries
+
+Authentication by attribute (IP), token, etc.
+
+???
+
+ - write our own methods for retrieving secrets using API (app-specific)
+ - use Chef to write configuration files (lacks immediacy)
+
+---
+
+# Hashicorp Vault Overview
+
+## Consul Templates
+
+> Consul Template queries a Consul instance and updates any number of specified
+> templates on the filesystem. As an added bonus, Consul Template can execute
+> arbitrary commands when a template update completes.
+
+ - Consul daemon runs and updates Consul templates as information changes
+ - Vault is a "first class" client for Consul and builds right into templates
+
+```
+production:{{with $secret := vault "secret/my-app/production" }}
+  adapter: postgresql
+  host: {{key "my-app/production/host"}}
+  username: {{$secret.Data.username}}
+  password: {{$secret.Data.password}}
+{{end}}
+```
+
+???
+
+- `secret/my-app/production` is a path to a secret
+- typically use this with approle style authentication
+
+---
+
+# Hashicorp Vault Overview
+
+## Leases
+
+ - Secrets from Vault come with a lifetime- requires renewal based on a policy
+ - Enforces check-ins (when configured)
+
+## Ephemeral Secrets
+
+Secrets that exist for a limited amount of time
+
+ - Secrets dynamically generated on a per-token/application/user basis
+ - Lease time allows for secrets/access to be retired
+ - Provide secrets on a "need to use" basis
+
+---
+
+# Hashicorp Vault Overview
+
+## Generated Secrets
+
+Secret backends can be used to create secrets for applications
+
+ - Give application "superuser" access to Vault and have Vault hand out
+   credentials
+ - Existing capabilities for Postgres, MySQL, AWS
+
+---
+
+# Hashicorp Vault Overview
+
+## Generated Secrets
+
+### Example: AWS IAM
+
+> The AWS secret backend for Vault generates AWS access credentials dynamically
+> based on IAM policies. This makes IAM much easier to use: credentials could
+> be generated on the fly, and are automatically revoked when the Vault lease
+> is expired.
+
+Access to IAM role by reading a secret from the appropriate path:
+
+```
+$ vault read aws/creds/deploy
+Key             Value
+lease_id        aws/creds/deploy/7cb8df71-782f-3de1-79dd-251778e49f58
+lease_duration  3600
+access_key      AKIAIOMYUTSLGJOGLHTQ
+secret_key      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
+security_token  <nil>
+```
+
+---
+
+# The Case for Hashicorp Vault
+
+## Pros
+
+ - comprehensive
+ - solid, secure architecture
+ - allows flexible "protection" of secrets
+ - represents "next generation" capabilities
+
+## Cons
+
+ - many moving parts
+ - can become a POF⁕
+ - still need another turtle⁕
+
+## ⁕ Footnotes
+
+ - every secret management platform has these shortcomings
+
+???
+
+- flexible protection means we can be really paranoid or a bit looser
+- more turtles required to:
+  - give applications, users, or hosts authentication for the vault
+  - perhaps have a different store for backing up long-term secrets such as
+     root passwords, core IAM roles, postgres accounts, etc.
+
+---
 
     </textarea>
     <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js"></script>
