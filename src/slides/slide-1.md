@@ -13,7 +13,7 @@ class: center, middle
  - Available Solutions
  - Hashicorp Vault Overview
  - The Case for Hashicorp Vault
- - Options for Implementation
+ - Future Work
 
 ---
 
@@ -82,8 +82,7 @@ We need secrets to do our jobs- we need safe storage and sensible access
  - Classic secret management (i.e. encrypted file on a share) will not scale
    - Application access to secrets complicated
    - Rotation and invalidation of secrets difficult and slow process
-
-> 
+     - especially critical when something is compromised!
 
 ---
 
@@ -105,6 +104,7 @@ We need secrets to do our jobs- we need safe storage and sensible access
 > What would put us above the bare necessities?
 
  - Temporary, ephemeral secrets
+ - Manged secrets
  - Auditing access
 
 ???
@@ -112,6 +112,9 @@ We need secrets to do our jobs- we need safe storage and sensible access
 Ephemeral secrets are secrets that exist for a short period of time
  - task or time based
  - reduces risk, a compromised secret only works for a short while
+
+Managed secrets are secrets given on behalf of a service
+ - manager has secret which is dispensed to those on a need-to-know basis
 
 An argument can easily be made that auditing is a core capability
 
@@ -126,10 +129,12 @@ An argument can easily be made that auditing is a core capability
    - sometimes encrypted
  - Chef Vault
    - a new capability, stores encrypted secret in databag
+   - access tied to Chef client object (node ≌ client)
 
 ???
 
-Solutions currently in use at Hutch, may have missed a few
+- Solutions currently in use at Hutch, may have missed a few
+- Chef Vault secret access pretty much controlled at the node level
 
 ---
 
@@ -139,13 +144,14 @@ Many exist:
   - Chef Vault 
   - Git-Crypt
   - Blackbox
-  - Keywhix
+  - Keywhiz
   - [others](https://gist.github.com/maxvt/bb49a6c7243163b8120625fc8ae3f3cd)
 
 ???
 
  - all have plus/minus
- - keywhiz/blackbox more-or-less specific to author's environment
+ - keywhiz/blackbox/Chef vault more-or-less specific to environment (netflix,
+   uber, etc)
  - git-crypt and others encrypt at rest on github, AAA features dependent on
    github
 
@@ -153,7 +159,8 @@ Many exist:
 
 # Hashicorp Vault Overview
 
-Hashicorp Vault is something of a game-changer on the secrets management landscape.
+Hashicorp Vault is something of a game-changer on the secrets management
+landscape.
 
  - stores in an encrypted backend, provides access via HTTP API
  - multiple authentication options
@@ -166,15 +173,33 @@ This all comes at a cost: _complexity_
 
 ???
 
- - there is a command-line client, it uses the HTTP API
- - _secret generators_ and ephemeral ticket management is where Vault
-   distinguishes itself
+- there is a command-line client, it uses the HTTP API
+- _secret generators_ and ephemeral ticket management is where Vault
+  distinguishes itself
+- complexity rises with features used.  gold-star installs require significant
+  infrastructure (e.g. Consul or other HA backend)
+- complexity lessend by API/programmatic access to secrets
 
 ---
 
 # Hashicorp Vault Overview
 
 <img src="img/hash-vault-arch.png" style="width: 100%; height: 100%"/>
+
+
+---
+
+# Hashicorp Vault Overview
+
+ - Secrets are stored encrypted
+ - Three of five generated keys are required to decrypt vault and make secrets
+   available
+ - Lose the keys, lose everything!
+
+???
+
+- storage backend encrypted using Shamir's Secret Sharing algorithm
+- master split into 5 keys, 3 keys will decrypt
 
 ---
 
@@ -189,8 +214,8 @@ Authentication by attribute (IP), token, etc.
 
 ???
 
- - write our own methods for retrieving secrets using API (app-specific)
- - use Chef to write configuration files (lacks immediacy)
+- write our own methods for retrieving secrets using API (app-specific)
+- use CM to write configuration files (lacks immediacy)
 
 ---
 
@@ -246,7 +271,7 @@ Secret backends can be used to create secrets for applications
 
  - Give application "superuser" access to Vault and have Vault hand out
    credentials
- - Existing capabilities for Postgres, MySQL, AWS
+ - Existing capabilities for Postgres, MySQL, AWS, many others
 
 ---
 
@@ -275,6 +300,30 @@ security_token  <nil>
 
 ---
 
+# Hashicorp Vault Overview
+
+## Generated Secrets
+
+### Example: PKI
+
+> The PKI secret backend for Vault generates X.509 certificates dynamically
+> based on configured roles. This means services can get certificates needed
+> for both client and server authentication without going through the usual
+> manual process of generating a private key and CSR, submitting to a CA, and
+> waiting for a verification and signing process to complete.
+
+Create SSL certificates on the fly- since they're automatically generated, use short TTL/lease and get a new one every week
+
+```
+$ vault write pki/root/generate/internal common_name=myvault.com ttl=87600h
+Key             Value
+certificate     -----BEGIN CERTIFICATE-----
+MIIDvTCCAqWgAwIBAgIUAsza+fvOw+Xh9ifYQ0gNN0ruuWcwDQYJKoZIhvcNAQEL
+BQAwFjEUMBIGA1UEAxMLbXl2YXVsdC5jb20wHhcNMTUxMTE5MTYwNDU5WhcNMjUx
+```
+
+---
+
 # The Case for Hashicorp Vault
 
 ## Pros
@@ -287,12 +336,10 @@ security_token  <nil>
 ## Cons
 
  - many moving parts
- - can become a POF⁕
- - still need another turtle⁕
+ - can become a POF<sup>⁕</sup>
+ - still need another turtle<sup>⁕</sup>
 
-## ⁕ Footnotes
-
- - every secret management platform has these shortcomings
+### <sup>⁕</sup>every secret management platform has these shortcomings
 
 ???
 
@@ -303,3 +350,58 @@ security_token  <nil>
      root passwords, core IAM roles, postgres accounts, etc.
 
 ---
+
+# The Case for Hashicorp Vault
+
+## Maintain Status Quo?
+
+ - well known
+ - reduces velocity
+
+## Put Lipstick on the Pig
+
+ - better horsecart?
+ - as we add features we end up re-implementing more advanced systems
+
+## Build a New System
+
+ - new, unfamiliar
+ - still with the turtles...
+ - adds technical complexity
+
+???
+
+---
+
+# The Case for Hashicorp Vault
+
+## Hashicorp Vault as a Solution
+
+ - robust- combine hot/cold Vault servers and distributed Consul storage for
+   relatively available and performant solution
+ - advanced capabilities for managing AWS especially critical with our chosen
+   "one-basket" architecture
+ - platform and application agnostic, has utility up and down the
+   infrastructure stack (vs. Chef Vault as Chef-only solution)
+ - supported "enterprise" version available
+
+???
+
+---
+
+# Future Work
+
+> Assuming we choose Vault as a solution
+
+## How is it Implemented
+
+ - One great big-ol vault?
+ - Per department/group/application?
+ - Vault as a managed service ∴ managing multiple deploys
+ - Best practices? Backups?
+ - Still need a way to store the Vault keys!
+
+???
+
+ - Note on "managing multiple deploys"- I've got svalbard ~85% automated with
+   Chef
